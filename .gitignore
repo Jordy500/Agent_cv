@@ -1,9 +1,8 @@
 # key_api
 key_api.py
 
-# Environment files
+# Environment files - ONLY .env should be ignored, NOT .env.example!
 .env
-.env.example
 
 # Python compiled files
 __pycache__/
