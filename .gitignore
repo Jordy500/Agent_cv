@@ -1,0 +1,18 @@
+# key_api
+key_api.py
+
+# Environment files
+.env
+.env.example
+
+# Python compiled files
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+IA_agent/
+
+# Editor config
+.vscode/
