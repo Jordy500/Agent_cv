@@ -1,12 +1,19 @@
 import os
 import logging
 from collections import Counter
+import sys
+from pathlib import Path
 
 import PyPDF2
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import spacy
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.guards import check_file_exists, safe_extract_pdf_text
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +52,11 @@ class CVAnalyzer:
 
     def analyze_cvs(self):
         for cv in self.cv_data:
+            # If analysis already exists and is complete, skip reanalysis to preserve pre-filled skills
+            if isinstance(cv, dict) and 'analysis' in cv and cv['analysis'].get('skills'):
+                logger.debug(f'CV for {cv.get("name", "Unknown")} already analyzed; skipping')
+                continue
+            
             # Extraire le texte du PDF
             path = cv.get('path') if isinstance(cv, dict) else None
             if not path:
@@ -82,17 +94,8 @@ class CVAnalyzer:
             logger.info('Analyse terminée pour le CV : %s', cv.get('name') if isinstance(cv, dict) else str(cv))
 
     def extract_pdf_text(self, pdf_path):
-        try:
-            with open(pdf_path, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
-                text = ""
-                for page in reader.pages:
-                    page_text = page.extract_text() or ""
-                    text += page_text
-            return text
-        except Exception as e:
-            logger.exception('Failed to extract text from %s: %s', pdf_path, e)
-            return ''
+        """Safely extract text from PDF using guards."""
+        return safe_extract_pdf_text(pdf_path, fallback_text="")
 
     def identify_skills(self, word_counts):
         # Identifie les compétences candidates en utilisant la fréquence des mots
@@ -114,3 +117,17 @@ class CVAnalyzer:
             if ent.label_ in relevant_labels:
                 experiences.append({'entity': ent.text, 'label': ent.label_})
         return experiences
+
+    def get_all_skills(self):
+        """Extract and return all unique skills from analyzed CVs.
+        
+        Returns:
+            list of unique skills from all CVs that have been analyzed
+        """
+        all_skills = set()
+        for cv in self.cv_data:
+            if isinstance(cv, dict) and 'analysis' in cv:
+                analysis = cv['analysis']
+                if isinstance(analysis, dict) and 'skills' in analysis:
+                    all_skills.update(analysis['skills'])
+        return list(all_skills)
