@@ -10,23 +10,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Import guards - note: this only works when EmailSender is imported from src package
 try:
     from .guards import check_env_var, check_api_key
 except ImportError:
-    # Fallback for direct script execution
     from guards import check_env_var, check_api_key
 
 
 class EmailSender:
-    """Simple wrapper d'envoi d'email.
-
-    Comporte deux modes :
-    - SMTP classique (par défaut)
-    - SendGrid via API si la variable SENDGRID == 'true'
-    Les secrets (mot de passe SMTP ou clé SendGrid) doivent venir de variables d'environnement.
-    """
-
+    
     def __init__(self):
         self.sendgrid_enabled = os.environ.get('SENDGRID', 'false').lower() == 'true'
         
@@ -50,7 +41,7 @@ class EmailSender:
             self.password = os.environ.get('EMAIL_PASSWORD')
 
     def send_email(self, recipient, subject, body, attachments=None):
-        # In test mode, just log and return without actual send
+
         test_mode = os.environ.get('EMAIL_TEST_MODE', 'false').lower() == 'true'
         if test_mode:
             import logging
@@ -71,15 +62,12 @@ class EmailSender:
         message['To'] = recipient
         message.attach(MIMEText(body, 'plain'))
 
-        # Attach any provided attachments. attachments is expected to be an
-        # iterable of tuples: (filename, bytes_data, mime_type)
         if attachments:
             for att in attachments:
                 try:
                     filename, data, mime_type = att
                 except Exception:
-                    # Backwards compatibility: allow (filename, data) where
-                    # data is bytes and mime_type defaults to pdf
+
                     filename, data = att
                     mime_type = 'application/octet-stream'
 
@@ -114,7 +102,6 @@ class EmailSender:
         }
 
         if attachments:
-            # SendGrid attachments expect base64 encoded content
             sg_atts = []
             for att in attachments:
                 try:

@@ -1,10 +1,3 @@
-"""Adzuna API adapter for fetching job offers.
-
-Adzuna provides a free REST API for job search across multiple countries.
-Free tier: 1000 calls/month.
-
-Documentation: https://developer.adzuna.com/docs/search
-"""
 from __future__ import annotations
 import os
 import logging
@@ -23,17 +16,7 @@ def fetch_from_adzuna(keywords: str = "data analyst OR data scientist",
                       location: str = "Paris",
                       max_results: int = 50,
                       country: str = "fr") -> List[Dict[str, Any]]:
-    """Fetch job offers from Adzuna API.
-    
-    Args:
-        keywords: Search keywords
-        location: Location (city name)
-        max_results: Maximum number of results (API returns max 50 per page)
-        country: Country code (fr, uk, us, etc.)
-    
-    Returns:
-        List of offer dicts with keys: title, company, location, description, url
-    """
+
     if not requests:
         raise RuntimeError("requests library not installed")
     
@@ -52,7 +35,7 @@ def fetch_from_adzuna(keywords: str = "data analyst OR data scientist",
         'app_key': app_key,
         'what': keywords,
         'where': location,
-        'results_per_page': min(max_results, 50),  # API max is 50
+        'results_per_page': min(max_results, 50), 
         'content-type': 'application/json'
     }
     
@@ -80,7 +63,6 @@ def fetch_from_adzuna(keywords: str = "data analyst OR data scientist",
                 'salary_max': item.get('salary_max'),
                 'contract_type': item.get('contract_type', '')
             }
-            # Debug: log first offer's description length
             if len(offers) == 0:
                 logger.debug(f"First offer description length: {len(offer['description'])} chars")
             offers.append(offer)
@@ -101,14 +83,9 @@ def fetch_from_adzuna(keywords: str = "data analyst OR data scientist",
 
 
 def test_adzuna_connection() -> bool:
-    """Test if Adzuna API credentials are valid.
-    
-    Returns:
-        True if connection successful, False otherwise
-    """
     try:
         offers = fetch_from_adzuna(keywords="data", location="Paris", max_results=1)
-        return len(offers) >= 0  # Even 0 results means connection is OK
+        return len(offers) >= 0 
     except Exception as e:
         logger.error(f"Adzuna connection test failed: {e}")
         return False

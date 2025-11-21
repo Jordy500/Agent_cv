@@ -62,8 +62,7 @@ def chat_completion(messages, model="gpt-3.5-turbo", max_tokens=500, temperature
             
         except requests.exceptions.HTTPError as e:
             last_exception = e
-            
-            # Rate limit (429) or server error (5xx) - retry with backoff
+
             if e.response.status_code in [429, 500, 502, 503, 504]:
                 if attempt < max_retries:
                     logger.warning(
@@ -77,7 +76,7 @@ def chat_completion(messages, model="gpt-3.5-turbo", max_tokens=500, temperature
                     logger.error(f'OpenAI API error {e.response.status_code} after {max_retries + 1} attempts')
                     raise RuntimeError(f'OpenAI API failed after retries: {e}') from e
             else:
-                # Other HTTP errors (401, 400, etc.) - don't retry
+
                 logger.error(f'OpenAI API error: {e}')
                 raise RuntimeError(f'OpenAI API error: {e}') from e
                 

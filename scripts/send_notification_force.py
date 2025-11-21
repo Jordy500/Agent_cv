@@ -30,7 +30,6 @@ def main():
         }
     ]
     job_analyzer = JobOfferAnalyzer(offers)
-    # run analysis (will set match_score to 0% for the sample data unless skills provided)
     job_analyzer.compare_job_offers(cv_skills=['Python','Django','React'])
 
     notifier = NotificationAgent(job_analyzer=job_analyzer, email_sender=email_sender, min_match_score=0.0)

@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Run one iteration: analyze CVs, match job offers and send notifications once.
-"""
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -9,7 +6,6 @@ import sys
 import logging
 from pathlib import Path
 
-# Ensure src is on sys.path so imports work when running from repo root
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from agents.cv_analyzer import CVAnalyzer
@@ -24,14 +20,8 @@ logger = logging.getLogger('run_once_notify')
 def run_once():
     logger.info('Starting single-run notification process')
 
-    # Load test data from src/data via CVAnalyzer init
     base_dir = os.path.join(os.path.dirname(__file__), 'src')
-
-    # Initialize agents with test data loading built into constructors
-    # We will re-use the same logic as main but only perform one iteration.
-    # Read data from src/main.py helper would be possible, but reinstantiate directly.
-
-    # Load test data files by importing main's helper? Simpler: reuse CVAnalyzer and JobOfferAnalyzer expecting src/data files
+    
     from main import get_test_data  # reuse helper
     from utils.adzuna_api import fetch_from_adzuna
     from utils.job_fetcher import filter_offers_by_title_and_location

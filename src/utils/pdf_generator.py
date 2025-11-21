@@ -6,11 +6,6 @@ from reportlab.lib.units import mm
 
 
 def create_pdf_bytes(text: str, title: str | None = None) -> bytes:
-    """Render `text` into a simple multi-page PDF and return the bytes.
-
-    This is intentionally minimal: it wraps lines and paginates when the
-    vertical space is exhausted.
-    """
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -19,7 +14,6 @@ def create_pdf_bytes(text: str, title: str | None = None) -> bytes:
     top_margin = 20 * mm
     y = height - top_margin
 
-    # Title
     if title:
         c.setFont("Helvetica-Bold", 14)
         c.drawString(left_margin, y, title)
@@ -27,7 +21,6 @@ def create_pdf_bytes(text: str, title: str | None = None) -> bytes:
 
     c.setFont("Helvetica", 11)
 
-    # Convert paragraphs into wrapped lines
     for paragraph in text.splitlines():
         if not paragraph.strip():
             # Blank line
