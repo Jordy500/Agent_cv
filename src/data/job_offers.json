@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Data Analyst",
+    "company": "DataCorp",
+    "description": "Looking for a data analyst with experience in SQL and data visualization.",
+    "skills": ["sql", "data visualization", "python"]
+  },
+  {
+    "title": "Python Developer",
+    "company": "TechStart",
+    "description": "We're seeking a Python developer proficient in machine learning and data processing.",
+    "skills": ["python", "machine learning", "numpy", "pandas"]
+  },
+  {
+    "title": "SQL Database Administrator",
+    "company": "CloudSystems",
+    "description": "Expert-level SQL and database optimization required.",
+    "skills": ["sql", "database", "performance tuning"]
+  },
+  {
+    "title": "Machine Learning Engineer",
+    "company": "AI Labs",
+    "description": "Join our team to build cutting-edge ML models for production.",
+    "skills": ["machine learning", "python", "tensorflow", "deep learning"]
+  }
+]

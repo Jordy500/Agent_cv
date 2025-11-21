@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Jordy",
+    "path": "src/data/CV (1).pdf",
+    "analysis": {
+      "skills": [
+        "python",
+        "sql",
+        "data visualization",
+        "machine learning",
+        "pandas",
+        "numpy"
+      ],
+      "experiences": []
+    }
+  }
+]
