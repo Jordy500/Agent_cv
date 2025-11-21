@@ -7,6 +7,7 @@ key_api.py
 # Python compiled files
 __pycache__/
 *.py[cod]
+*.pyc
 
 # Virtual environments
 venv/
@@ -15,3 +16,23 @@ IA_agent/
 
 # Editor config
 .vscode/
+
+# Logs and runtime data
+logs/*.log
+logs/seen_offers.json
+
+# Pytest cache
+.pytest_cache/
+
+# Temporary files
+context.txt
+prompt.txt
+*.tmp
+*.bak
+
+# dossier
+archive/
+CV (1).pdf
+data/
+ORGANISATION_COMPLETE.md
+STRUCTURE.md
