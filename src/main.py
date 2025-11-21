@@ -1,15 +1,16 @@
 import os
 import logging
-import time
+import json
 from agents.cv_analyzer import CVAnalyzer
 from agents.job_offer_analyzer import JobOfferAnalyzer
 from agents.motivation_letter_generator import MotivationLetterGenerator
 from agents.notification_agent import NotificationAgent
 from utils.email_sender import EmailSender
-from utils.database_handler import DatabaseHandler
+from utils.adzuna_api import fetch_from_adzuna
+from utils.job_fetcher import filter_offers_by_title_and_location
 from dotenv import load_dotenv
 
-# Configure logging
+# Configuration des logs
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -18,45 +19,79 @@ logger = logging.getLogger(__name__)
 
 
 def get_test_data():
-    """Retourne des données de test quand MongoDB n'est pas disponible."""
-    return {
+    """
+    Charge les données de test depuis les fichiers JSON locaux
+    Utilisé quand on n'a pas de base de données
+    """
+    base_dir = os.path.join(os.path.dirname(__file__), 'data')
+    result = {
         'cv_data': [],
         'job_offers': []
     }
 
+    def _load_json(filename):
+        path = os.path.join(base_dir, filename)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            logger.debug(f'Fichier non trouvé: {path}')
+            return None
+        except Exception as e:
+            logger.warning(f'Erreur chargement {path}: {e}')
+            return None
+
+    # Charger CV
+    cv = _load_json('cv_data.json')
+    if isinstance(cv, list):
+        result['cv_data'] = cv
+
+    # Charger offres
+    jobs = _load_json('job_offers.json')
+    if isinstance(jobs, list):
+        result['job_offers'] = jobs
+
+    return result
+
 
 def main():
-    # Charger variables d'environnement depuis .env si présent
+    """Point d'entrée principal de l'application"""
     load_dotenv()
-
-    db_url = os.environ.get('DATABASE_URL')
-    use_test_mode = os.environ.get('USE_TEST_MODE', 'false').lower() == 'true'
     
-    logger.info('Starting Agent_cv...')
-    logger.info(f'Test mode: {use_test_mode}')
+    logger.info('Démarrage Agent_cv...')
 
-    # Initialiser les données (MongoDB ou test)
-    if db_url and not use_test_mode:
+    # Charger les données locales
+    test_data = get_test_data()
+    cv_data = test_data['cv_data']
+    job_offers = test_data['job_offers']
+    
+    # Check si on doit récupérer depuis Adzuna
+    job_source = os.environ.get('JOB_SOURCE', '').lower()
+    
+    if job_source == 'adzuna':
         try:
-            db_handler = DatabaseHandler(db_url)
-            cv_data = list(db_handler.get_cv_data())
-            job_offers = list(db_handler.get_job_offers())
-            logger.info(f'Connected to MongoDB: {len(cv_data)} CVs, {len(job_offers)} job offers loaded')
+            titles = ['data analyst', 'data scientist']
+            location = os.environ.get('JOB_LOCATION', 'paris')
+            
+            logger.info('Récupération des offres depuis Adzuna...')
+            keywords = ' OR '.join(titles)
+            offers = fetch_from_adzuna(keywords=keywords, location=location, max_results=50)
+            
+            # Filtrer les offres
+            filtered = filter_offers_by_title_and_location(offers, titles, location)
+            if filtered:
+                job_offers = filtered
+                logger.info(f'Chargé {len(job_offers)} offres depuis Adzuna')
         except Exception as e:
-            logger.warning(f'Failed to connect to MongoDB: {e}. Falling back to test mode.')
-            test_data = get_test_data()
-            cv_data = test_data['cv_data']
-            job_offers = test_data['job_offers']
-    else:
-        logger.info('Using test mode (no MongoDB)')
-        test_data = get_test_data()
-        cv_data = test_data['cv_data']
-        job_offers = test_data['job_offers']
+            logger.warning(f'Erreur Adzuna: {e}, utilisation données test')
+    
+    logger.info(f'Données chargées: {len(cv_data)} CV(s), {len(job_offers)} offre(s)')
 
-    # Charger les modèles/config depuis variables d'environnement
-    spacy_model = os.environ.get('SPACY_MODEL')
+    # Config depuis .env
+    spacy_model = os.environ.get('SPACY_MODEL', 'fr_core_news_sm')
     bert_model = os.environ.get('BERT_MODEL')
     gpt_key = os.environ.get('GPT_3_API_KEY')
+    notification_email = os.environ.get('NOTIFICATION_EMAIL')
 
     # Initialiser les agents
     cv_analyzer = CVAnalyzer(cv_data, spacy_model)
@@ -64,30 +99,38 @@ def main():
     letter_generator = MotivationLetterGenerator(cv_analyzer, job_analyzer, gpt_key)
     notification_agent = NotificationAgent(job_analyzer, EmailSender())
 
-    logger.info('All agents initialized successfully')
+    logger.info('Agents initialisés avec succès')
 
-    # Processus principale
+    # Vérifier qu'on a des données
     if not cv_data and not job_offers:
-        logger.info('No data to process. Add CVs and job offers to your database or use test mode.')
-        logger.info('To add test data, populate src/data/*.json files.')
+        logger.warning('Aucune donnée à traiter. Ajoutez des données dans src/data/*.json')
         return
 
+    # Traitement
     try:
-        iteration = 0
-        while True:
-            iteration += 1
-            logger.info(f'--- Iteration {iteration} ---')
-            cv_analyzer.analyze_cvs()
-            job_analyzer.compare_job_offers()
-            letter_generator.generate_letters()
-            notification_agent.send_notifications()
-            sleep_time = int(os.environ.get('LOOP_SLEEP_SECONDS', 60))
-            logger.info(f'Sleeping for {sleep_time} seconds...')
-            time.sleep(sleep_time)
+        logger.info('Début du traitement...')
+        
+        # Analyser les CV
+        cv_analyzer.analyze_cvs()
+        
+        # Extraire mes compétences
+        my_skills = cv_analyzer.get_all_skills()
+        
+        # Comparer avec les offres
+        job_analyzer.compare_job_offers(cv_skills=my_skills)
+        
+        # Générer les lettres
+        letter_generator.generate_letters()
+        
+        # Envoyer les notifications
+        notification_agent.send_notifications(recipient_email=notification_email)
+        
+        logger.info('Traitement terminé avec succès')
+        
     except KeyboardInterrupt:
-        logger.info('Shutting down gracefully...')
+        logger.info('Arrêt manuel')
     except Exception as e:
-        logger.exception(f'Unexpected error: {e}')
+        logger.exception(f'Erreur: {e}')
 
 
 if __name__ == "__main__":
