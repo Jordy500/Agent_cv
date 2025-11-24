@@ -1,11 +1,12 @@
 import io
 import textwrap
+from typing import Optional
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 
 
-def create_pdf_bytes(text: str, title: str | None = None) -> bytes:
+def create_pdf_bytes(text: str, title: Optional[str] = None) -> bytes:
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
