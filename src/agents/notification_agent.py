@@ -109,10 +109,8 @@ class NotificationAgent:
 
     def _build_subject(self, offer):
         """Build email subject line."""
-        return (
-            f"Alerte offre : {offer['title']} chez {offer['company']} "
-            f"({int(offer['match_score'] * 100)}% de correspondance)"
-        )
+        match_percent = int(offer['match_score'] * 100)
+        return f"Nouvelle offre {match_percent}% - {offer['title']} - {offer['company']}"
 
     def _build_email_body(self, offer, motivation_letter=None):
         """Build email body with job details and optional motivation letter.
@@ -155,48 +153,42 @@ class NotificationAgent:
         # Get the offer URL if available
         offer_url = offer.get('url', offer.get('link', ''))
         
-        body = f"""
-        Bonjour,
+        body = f"""Bonjour,
 
-        Bonne nouvelle ! Nous avons trouvé une opportunité qui correspond à votre profil :
+Bonne nouvelle ! Nous avons trouvé une opportunité qui correspond à votre profil :
 
-        Poste : {offer['title']}
-        Entreprise : {offer['company']}
-        Taux de correspondance : {int(offer['match_score'] * 100)} %
-        """
+📋 Poste : {offer['title']}
+🏢 Entreprise : {offer['company']}
+📊 Taux de correspondance : {int(offer['match_score'] * 100)}%"""
         
         # Add URL if available
         if offer_url:
             body += f"""
-        🔗 Lien de l'offre : {offer_url}
-        """
+🔗 Postuler : {offer_url}"""
         
         body += f"""
 
-    Description :
-    {description_text}
+Description :
+{description_text}
 
-        Compétences requises :
-        {', '.join(required_skills) if required_skills else 'N/A'}
+Compétences requises :
+{', '.join(required_skills) if required_skills else 'N/A'}
 
-        ✅ Vos compétences correspondantes ({len(matched_skills)}/{len(required_skills)}) :
-        {', '.join(matched_skills) if matched_skills else 'Aucune correspondance'}
-        """
+✅ Vos compétences correspondantes ({len(matched_skills)}/{len(required_skills)}) :
+{', '.join(matched_skills) if matched_skills else 'Aucune correspondance'}"""
         
         # Add missing skills section if applicable
         if missing_skills:
             body += f"""
-        
-        📚 Compétences à développer pour un match à 100% ({len(missing_skills)}) :
-        {', '.join(missing_skills)}
-        
-        💡 Conseil : Développer ces compétences augmenterait significativement vos chances d'obtenir ce poste.
-        """
+
+📚 Compétences à développer pour un match à 100% ({len(missing_skills)}) :
+{', '.join(missing_skills)}
+
+💡 Conseil : Développer ces compétences augmenterait vos chances d'obtenir ce poste."""
         else:
             body += """
-        
-        🎯 Félicitations ! Vous possédez 100% des compétences requises pour ce poste !
-        """
+
+🎯 Félicitations ! Vous possédez 100% des compétences requises pour ce poste !"""
         
         body += f"""
 
@@ -207,20 +199,19 @@ class NotificationAgent:
         if motivation_letter:
             body += f"""
 
-        ---
-        LETTRE DE MOTIVATION PERSONNALISÉE
-        ---
+---
+LETTRE DE MOTIVATION PERSONNALISÉE
+---
 
-        {motivation_letter}
-        """
+{motivation_letter}"""
 
         body += """
 
-        Cordialement,
-        L'équipe Agent_cv
-        ---
-        Ceci est une notification automatique. Merci de ne pas répondre à cet e-mail.
-        """
+Cordialement,
+L'équipe Agent_CV
+
+---
+Ceci est une notification automatique."""
 
         return body.strip()
 

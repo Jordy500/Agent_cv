@@ -6,7 +6,7 @@ load_dotenv()
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from agents.job_offer_analyzer import JobOfferAnalyzer
 from agents.notification_agent import NotificationAgent
@@ -33,7 +33,8 @@ def main():
     job_analyzer.compare_job_offers(cv_skills=['Python','Django','React'])
 
     notifier = NotificationAgent(job_analyzer=job_analyzer, email_sender=email_sender, min_match_score=0.0)
-    recipient = email_sender.sender_email or 'test@example.com'
+    import os
+    recipient = os.environ.get('NOTIFICATION_EMAIL') or 'j53276019@gmail.com'
     print(f'Sending to {recipient}...')
     sent = notifier.send_notifications(recipient_email=recipient, force=True)
     print(f'Sent: {sent}')
