@@ -135,16 +135,25 @@ def main():
     email_sender = EmailSender()
     notification_agent = NotificationAgent(job_analyzer, email_sender)
     
-    notification_email = os.environ.get('NOTIFICATION_EMAIL')
     generated_letters = letter_generator.get_generated_letters()
     
-    sent_count = notification_agent.send_notifications(
-        recipient_email=notification_email,
-        force=True,
-        generated_letters=generated_letters
-    )
+    # Send notifications to all collaborators
+    total_sent = 0
+    for cv in cv_data:
+        if isinstance(cv, dict) and cv.get('email'):
+            recipient_email = cv['email']
+            recipient_name = cv.get('name', 'Collaborateur')
+            logger.info(f'Sending notifications to {recipient_name} ({recipient_email})')
+            
+            sent = notification_agent.send_notifications(
+                recipient_email=recipient_email,
+                force=True,
+                generated_letters=generated_letters
+            )
+            total_sent += sent
+            logger.info(f'Sent {sent} notification(s) to {recipient_name}')
     
-    logger.info(f"Sent {sent_count} notifications for new offers")
+    logger.info(f"Total notifications sent: {total_sent}")
 
     save_seen_offers(seen_ids)
     

@@ -70,11 +70,23 @@ def run_once():
     letter_generator.generate_letters()
     generated_letters = letter_generator.get_generated_letters()
 
-    notification_email = os.environ.get('NOTIFICATION_EMAIL') or (test_data.get('user_preferences') or {}).get('email')
-    # For user-requested immediate send, force=True will bypass duplicate checks
-    sent = notification_agent.send_notifications(recipient_email=notification_email, force=True, generated_letters=generated_letters)
+    # Send notifications to all collaborators
+    total_sent = 0
+    for cv in cv_data:
+        if isinstance(cv, dict) and cv.get('email'):
+            recipient_email = cv['email']
+            recipient_name = cv.get('name', 'Collaborateur')
+            logger.info(f'Sending notifications to {recipient_name} ({recipient_email})')
+            
+            sent = notification_agent.send_notifications(
+                recipient_email=recipient_email, 
+                force=True, 
+                generated_letters=generated_letters
+            )
+            total_sent += sent
+            logger.info(f'Sent {sent} notification(s) to {recipient_name}')
 
-    logger.info(f'Notification run completed. Emails sent: {sent}')
+    logger.info(f'Notification run completed. Total emails sent: {total_sent}')
 
 if __name__ == '__main__':
     run_once()
