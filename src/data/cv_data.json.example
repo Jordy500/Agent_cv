@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Collaborateur1",
+    "path": "src/data/CV_exemple.pdf",
+    "email": "collaborateur1@example.com",
+    "analysis": {
+      "skills": [
+        "python",
+        "sql",
+        "data visualization",
+        "machine learning",
+        "pandas",
+        "numpy"
+      ],
+      "experiences": []
+    }
+  },
+  {
+    "name": "Collaborateur2",
+    "path": "src/data/CV_exemple2.pdf",
+    "email": "collaborateur2@example.com",
+    "analysis": {
+      "skills": [
+        "python",
+        "sql",
+        "data visualization",
+        "machine learning",
+        "pandas",
+        "numpy"
+      ],
+      "experiences": []
+    }
+  }
+]

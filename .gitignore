@@ -3,6 +3,7 @@ key_api.py
 
 # Environment files - ONLY .env should be ignored, NOT .env.example!
 .env
+.md
 
 # Python compiled files
 __pycache__/
@@ -20,6 +21,10 @@ IA_agent/
 # Logs and runtime data
 logs/*.log
 logs/seen_offers.json
+
+# Sensitive data - contains emails
+src/data/cv_data.json
+src/data/user_preferences.json
 
 # Pytest cache
 .pytest_cache/
