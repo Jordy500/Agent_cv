@@ -17,23 +17,32 @@ IA_agent/
 
 # Editor config
 .vscode/
+.idea/
+.DS_Store
+*.swp
 
 # Logs and runtime data
 logs/*.log
 logs/seen_offers.json
+logs/*.json
 
 # Sensitive data - contains emails
 src/data/cv_data.json
 src/data/user_preferences.json
+src/data/notification_history.json
+src/data/job_offers.json
 
 # Pytest cache
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Temporary files
 context.txt
 prompt.txt
 *.tmp
 *.bak
+tmp/
 
 # dossier
 archive/
@@ -41,3 +50,31 @@ CV (1).pdf
 data/
 ORGANISATION_COMPLETE.md
 STRUCTURE.md
+
+# Databases
+agent.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Streamlit
+.streamlit/
+.streamlit/secrets.toml
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Coverage / reports
+.coverage
+coverage.xml
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Env variants
+.env.local
+.env.*.local
