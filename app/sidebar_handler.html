@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+    <script>
+        (function() {
+            let checkCount = 0;
+            const maxChecks = 50;
+            
+            function findAndControlSidebar() {
+                checkCount++;
+                const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
+                
+                if (sidebar) {
+                    console.log('Sidebar trouvée !');
+                    
+                    // Forcer le style initial
+                    sidebar.style.position = 'fixed';
+                    sidebar.style.left = '-280px';
+                    sidebar.style.top = '0';
+                    sidebar.style.height = '100vh';
+                    sidebar.style.transition = 'left 0.3s ease';
+                    sidebar.style.zIndex = '999';
+                    
+                    let isVisible = false;
+                    
+                    // Écouter les mouvements de souris sur le document parent
+                    window.parent.document.addEventListener('mousemove', function(e) {
+                        const mouseX = e.clientX;
+                        
+                        // Afficher si souris dans les 30 premiers pixels
+                        if (mouseX <= 30) {
+                            sidebar.style.left = '0px';
+                            isVisible = true;
+                        }
+                        // Garder visible si souris sur la sidebar
+                        else if (isVisible && mouseX <= 300) {
+                            sidebar.style.left = '0px';
+                        }
+                        // Cacher sinon
+                        else {
+                            sidebar.style.left = '-280px';
+                            isVisible = false;
+                        }
+                    });
+                    
+                    console.log('Écouteur de souris activé !');
+                } else if (checkCount < maxChecks) {
+                    // Réessayer
+                    setTimeout(findAndControlSidebar, 100);
+                } else {
+                    console.error('Sidebar non trouvée après ' + maxChecks + ' tentatives');
+                }
+            }
+            
+            // Démarrer la recherche
+            findAndControlSidebar();
+        })();
+    </script>
+</body>
+</html>
