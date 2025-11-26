@@ -1,6 +1,38 @@
 import logging
 import re
 from difflib import SequenceMatcher
+from typing import Any, Dict, List
+
+from utils.text_processing import normalize_text
+try:
+    from utils.nlp_extractors import (
+        extract_years_experience,
+        extract_education_level,
+        extract_seniority_level,
+    )
+except Exception:
+    # Fallbacks if extractors are not available
+    def extract_years_experience(text: str):
+        m = re.search(r"(\d{1,2})\s+(?:years|ans|années)", text, flags=re.I)
+        return float(m.group(1)) if m else None
+    def extract_education_level(text: str):
+        t = text.lower()
+        if 'phd' in t or 'doctorat' in t:
+            return 'phd'
+        if 'master' in t or 'msc' in t:
+            return 'master'
+        if 'bachelor' in t or 'licence' in t:
+            return 'bachelor'
+        if 'bac' in t:
+            return 'bac'
+        return 'none'
+    def extract_seniority_level(text: str):
+        t = text.lower()
+        if any(x in t for x in ['senior','lead']):
+            return 'senior'
+        if any(x in t for x in ['junior','entry']):
+            return 'junior'
+        return 'mid'
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +60,14 @@ class JobOfferAnalyzer:
         self.bert_model = bert_model
         self.analyzed_offers = []
 
-    def compare_job_offers(self, cv_skills=None):
+    def compare_job_offers(self, cv_skills=None, cv_data: List[Dict[str, Any]] = None):
         """Analyze and compare all job offers against candidate skills.
         
         Args:
             cv_skills: optional list of candidate skills (for better matching);
                       if None, will extract from offers' own data
+            cv_data: optional list of CV dicts with `analysis` providing
+                     `skills`, `years_experience`, and `education_level` for ATS scoring
         """
         if not self.job_offers:
             logger.info('No job offers to analyze')
@@ -47,14 +81,14 @@ class JobOfferAnalyzer:
                 logger.warning(f'Skipping invalid offer format: {offer}')
                 continue
             
-            analyzed = self._analyze_single_offer(offer, cv_skills)
+            analyzed = self._analyze_single_offer(offer, cv_skills, cv_data=cv_data)
             self.analyzed_offers.append(analyzed)
         
         # Log summary
         high_matches = [o for o in self.analyzed_offers if o.get('match_score', 0) >= 0.7]
         logger.info(f'Job comparison complete: {len(high_matches)} offers with good match (score >= 0.7)')
 
-    def _analyze_single_offer(self, offer, cv_skills=None):
+    def _analyze_single_offer(self, offer, cv_skills=None, cv_data: List[Dict[str, Any]] = None):
         """Analyze a single job offer.
         
         Returns a dict with:
@@ -62,6 +96,7 @@ class JobOfferAnalyzer:
         - extracted_skills: list of required skills
         - match_score: 0.0-1.0 similarity score
         - matched_skills: list of matched skills
+        - ats_score: weighted score including years, education, location
         """
         title = offer.get('title', 'Unknown')
         company = offer.get('company', 'Unknown')
@@ -100,14 +135,36 @@ class JobOfferAnalyzer:
         else:
             logger.debug(f'No CV skills provided for matching against {title}')
         
+        # ATS-style requirement extraction
+        requirements = self._extract_requirements(offer)
+
+        ats_score = None
+        best_match_cv = None
+        if cv_data:
+            # pick best cv against this offer
+            best_score = -1.0
+            for cv in cv_data:
+                score = self._score_offer(cv, offer, requirements, fallback_cv_skills=cv_skills)
+                if score > best_score:
+                    best_score = score
+                    best_match_cv = cv
+            ats_score = round(best_score, 4)
+
         result = {
             'title': title,
             'company': company,
             'description': description,
+            'url': offer.get('url', ''),
+            'location': offer.get('location', ''),
+            'source': offer.get('source', ''),
+            'created': offer.get('created', ''),
             'required_skills': required_skills,
             'matched_skills': matched_skills,
             'match_score': match_score,
-            'match_percentage': int(match_score * 100)
+            'match_percentage': int(match_score * 100),
+            'requirements': requirements,
+            'ats_score': ats_score,
+            'best_match_cv': best_match_cv.get('name') if best_match_cv else None,
         }
         
         if match_score > 0:
@@ -221,6 +278,79 @@ class JobOfferAnalyzer:
         
         score = match_count / len(required_skills) if required_skills else 0.0
         return matched, score
+
+    # --- ATS helpers ---
+    _WEIGHTS = {
+        'skills': 0.60,
+        'experience': 0.20,
+        'education': 0.15,
+        'location': 0.05,
+    }
+
+    _EDU_ORDER = {
+        'none': 0,
+        'bac': 1,
+        'bachelor': 2,
+        'master': 3,
+        'phd': 4,
+    }
+
+    def _extract_requirements(self, offer: Dict[str, Any]) -> Dict[str, Any]:
+        text = normalize_text(offer.get('description', '') + ' ' + offer.get('title', ''))
+        required_years = extract_years_experience(text) or 0.0
+        required_edu = extract_education_level(text) or 'none'
+        seniority = extract_seniority_level(text)
+        # simple skill hints from description
+        skill_hints = set()
+        for token in re.findall(r"[a-zA-Z+#.]{2,}", text):
+            t = token.lower()
+            if t in {'python','java','javascript','typescript','react','vue','angular','node','go','rust','c++','c#','dotnet','sql','nosql','mysql','postgres','mongodb','redis','aws','gcp','azure','docker','kubernetes','terraform','ansible','linux','git','jira','spark','hadoop','airflow','dbt','pandas','numpy','sklearn','pytorch','tensorflow'}:
+                skill_hints.add(t)
+        return {
+            'required_years': required_years,
+            'required_education': required_edu,
+            'seniority': seniority,
+            'skill_hints': list(skill_hints),
+        }
+
+    def _score_offer(self, cv: Dict[str, Any], offer: Dict[str, Any], reqs: Dict[str, Any], fallback_cv_skills=None) -> float:
+        analysis = cv.get('analysis', {})
+        cv_skills = set(map(str.lower, analysis.get('skills', cv.get('skills', fallback_cv_skills or []))))
+        offer_skills = set(map(str.lower, offer.get('skills', []))) | set(reqs.get('skill_hints', []))
+        # skills score
+        common = cv_skills & offer_skills
+        skills_score = (len(common) / max(1, len(offer_skills))) if offer_skills else (1.0 if cv_skills else 0.0)
+
+        # experience score
+        cv_years = float(analysis.get('years_experience') or 0)
+        req_years = float(reqs.get('required_years') or 0)
+        if req_years <= 0:
+            exp_score = 1.0
+        else:
+            exp_score = min(1.0, cv_years / req_years)
+
+        # education score
+        cv_edu = str(analysis.get('education_level') or 'none').lower()
+        req_edu = str(reqs.get('required_education') or 'none').lower()
+        cv_rank = self._EDU_ORDER.get(cv_edu, 0)
+        req_rank = self._EDU_ORDER.get(req_edu, 0)
+        edu_score = 1.0 if cv_rank >= req_rank else (cv_rank / max(1, req_rank))
+
+        # location score (placeholder: prefer remote matches)
+        location = str(offer.get('location', '')).lower()
+        prefers_remote = bool(cv.get('preferences', {}).get('remote', True))
+        if 'remote' in location or 'télétravail' in location:
+            loc_score = 1.0
+        else:
+            loc_score = 1.0 if not prefers_remote else 0.6
+
+        total = (
+            self._WEIGHTS['skills'] * skills_score +
+            self._WEIGHTS['experience'] * exp_score +
+            self._WEIGHTS['education'] * edu_score +
+            self._WEIGHTS['location'] * loc_score
+        )
+        return round(total, 4)
 
     def get_best_matches(self, top_n=5):
         """Return top N job offers sorted by match score.

@@ -41,9 +41,9 @@ class CVAnalyzer:
 
         # Ensure required NLTK resources are available (download only if missing)
         try:
-            nltk.data.find('tokenizers/punkt')
+            nltk.data.find('tokenizers/punkt_tab')
         except LookupError:
-            nltk.download('punkt')
+            nltk.download('punkt_tab')
 
         try:
             nltk.data.find('corpora/stopwords')
@@ -84,11 +84,37 @@ class CVAnalyzer:
             # Analyser les expériences
             experiences = self.analyze_experiences(text)
 
+            # Enrichir avec années d'expérience, niveau d'étude, soft skills, certifications
+            try:
+                from utils.nlp_extractors import (
+                    extract_years_experience,
+                    extract_education_level,
+                    extract_soft_skills,
+                    extract_certifications,
+                )
+            except ImportError:
+                # Fallback relative import if running from src context
+                from nlp_extractors import (
+                    extract_years_experience,
+                    extract_education_level,
+                    extract_soft_skills,
+                    extract_certifications,
+                )
+
+            years_exp = extract_years_experience(text)
+            education = extract_education_level(text)
+            soft_skills = extract_soft_skills(text)
+            certifications = extract_certifications(text)
+
             # Stocker les résultats
             if isinstance(cv, dict):
                 cv['analysis'] = {
                     'skills': skills,
                     'experiences': experiences,
+                    'years_experience': years_exp,
+                    'education': education,
+                    'soft_skills': soft_skills,
+                    'certifications': certifications,
                 }
 
             logger.info('Analyse terminée pour le CV : %s', cv.get('name') if isinstance(cv, dict) else str(cv))
@@ -98,12 +124,69 @@ class CVAnalyzer:
         return safe_extract_pdf_text(pdf_path, fallback_text="")
 
     def identify_skills(self, word_counts):
-        # Identifie les compétences candidates en utilisant la fréquence des mots
-        top_skills = []
-        for word, _ in word_counts.most_common(10):  # On prend les 10 mots les plus fréquents
-            if len(word) > 3:  # On ignore les mots très courts
-                top_skills.append(word)
-        return top_skills
+        """Identifie les compétences techniques et outils dans le texte du CV"""
+        
+        # Liste exhaustive de compétences techniques recherchées
+        tech_skills = {
+            # Langages de programmation
+            'python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'php', 'ruby', 'go', 'rust', 'kotlin', 'swift', 'scala', 'r',
+            
+            # Bases de données
+            'sql', 'mysql', 'postgresql', 'mongodb', 'oracle', 'sqlite', 'redis', 'cassandra', 'dynamodb', 'mariadb',
+            
+            # Outils BI et Data
+            'power bi', 'powerbi', 'tableau', 'looker', 'qlik', 'excel', 'dax', 'power query',
+            
+            # Machine Learning / AI
+            'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'scikit-learn', 'keras', 'nlp', 'computer vision',
+            
+            # Data Science
+            'pandas', 'numpy', 'scipy', 'matplotlib', 'seaborn', 'plotly', 'jupyter',
+            
+            # Big Data / ETL
+            'spark', 'hadoop', 'airflow', 'kafka', 'etl', 'data pipeline', 'databricks',
+            
+            # Cloud
+            'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform',
+            
+            # Web
+            'react', 'angular', 'vue', 'node.js', 'django', 'flask', 'fastapi', 'spring',
+            
+            # Méthodologies
+            'agile', 'scrum', 'devops', 'ci/cd', 'git', 'jira',
+            
+            # Autres compétences techniques
+            'api', 'rest', 'graphql', 'microservices', 'data modeling', 'data visualization',
+            'business intelligence', 'data analysis', 'statistical analysis', 'data mining',
+            'reporting', 'dashboard', 'kpi', 'analytics'
+        }
+        
+        # Rechercher les compétences dans le texte
+        found_skills = []
+        text_lower = ' '.join(word_counts.keys()).lower()
+        
+        for skill in tech_skills:
+            # Recherche exacte ou partielle
+            if skill in text_lower or any(skill in word for word in word_counts.keys()):
+                found_skills.append(skill)
+        
+        # Ajouter aussi les outils identifiés par NER si pertinents
+        for word, count in word_counts.most_common(50):
+            word_lower = word.lower()
+            # Filtrer les mots qui ressemblent à des compétences techniques
+            if (len(word) > 2 and 
+                word_lower not in ['data', 'pour', 'avec', 'dans', 'cette', 'vous', 'votre', 'notre'] and
+                any(char.isupper() for char in word) or  # Mots avec majuscules (ex: PowerBI)
+                word_lower.endswith(('bi', 'sql', 'py')) or  # Suffixes techniques
+                count >= 3):  # Mentionné plusieurs fois
+                
+                if word_lower not in [s.lower() for s in found_skills]:
+                    # Vérifier si c'est un acronyme ou un outil
+                    if len(word) <= 10 and (word.isupper() or word[0].isupper()):
+                        found_skills.append(word_lower)
+        
+        # Retourner uniquement les compétences trouvées (minimum 5, maximum 25)
+        return found_skills[:25] if found_skills else ['python', 'sql', 'data analysis']
 
     def analyze_experiences(self, text):
         # Cette méthode extrait les informations sur les expériences via NER
