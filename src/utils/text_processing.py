@@ -16,3 +16,13 @@ def preprocess_text(text, nlp=None):
     if nlp is None:
         nlp = get_spacy_model()
     return nlp(text)
+
+
+def normalize_text(text: str) -> str:
+    """Normalize text for simple regex-based extraction.
+    - Lowercase
+    - Strip extra whitespace
+    """
+    if not isinstance(text, str):
+        return ''
+    return ' '.join(text.lower().split())
